@@ -6,11 +6,23 @@ A Tony Stark-inspired terminal that connects to every major LLM and all your dev
 
 ## Install
 
+**One command:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/muhammadrashid4587/nexus-terminal/main/install.sh | bash
+```
+
+**Or with pipx (recommended on macOS):**
+```bash
+brew install pipx
+pipx install git+https://github.com/muhammadrashid4587/nexus-terminal.git
+```
+
+**Or with pip (in a venv):**
 ```bash
 pip install nexus-terminal
 ```
 
-Or from source:
+**Or from source:**
 ```bash
 git clone https://github.com/muhammadrashid4587/nexus-terminal.git
 cd nexus-terminal

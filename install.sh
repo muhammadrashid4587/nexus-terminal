@@ -35,41 +35,53 @@ fi
 PY_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 echo -e "  ${G}✓${X} Python ${PY_VERSION}"
 
-# Check if we're in the nexus directory (local install) or need to clone
+# ── Install pipx if needed ──
+if ! command -v pipx &> /dev/null; then
+    echo -e "  ${R}▸${X} Installing pipx..."
+    if command -v brew &> /dev/null; then
+        brew install pipx --quiet 2>/dev/null
+        pipx ensurepath 2>/dev/null
+    else
+        python3 -m pip install --user pipx 2>/dev/null || {
+            echo -e "  ${R}✗${X} Could not install pipx. Install manually: brew install pipx"
+            exit 1
+        }
+        python3 -m pipx ensurepath 2>/dev/null
+    fi
+    # Reload PATH
+    export PATH="$HOME/.local/bin:$PATH"
+fi
+echo -e "  ${G}✓${X} pipx ready"
+
+# ── Check if local source or remote ──
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" 2>/dev/null)" && pwd 2>/dev/null || echo "")"
 
 if [ -f "${SCRIPT_DIR}/pyproject.toml" ]; then
-    # Local install
     echo -e "  ${R}▸${X} Installing from local source..."
     cd "$SCRIPT_DIR"
-    pip install -e ".[dev]" --quiet 2>/dev/null || pip install -e . --quiet
+    pipx install -e . --force 2>/dev/null || pipx install . --force
 else
-    # Remote install via pip
-    echo -e "  ${R}▸${X} Installing from PyPI..."
-    pip install nexus-terminal --quiet 2>/dev/null || {
-        # Fallback: clone from GitHub
-        echo -e "  ${R}▸${X} Cloning from GitHub..."
-        INSTALL_DIR="$HOME/.nexus/src"
-        mkdir -p "$INSTALL_DIR"
-        if [ -d "$INSTALL_DIR/nexus-terminal" ]; then
-            cd "$INSTALL_DIR/nexus-terminal" && git pull --quiet
-        else
-            git clone https://github.com/muhammadrashid4587/nexus-terminal.git "$INSTALL_DIR/nexus-terminal"
-            cd "$INSTALL_DIR/nexus-terminal"
-        fi
-        pip install -e . --quiet
-    }
+    echo -e "  ${R}▸${X} Installing from GitHub..."
+    pipx install "git+https://github.com/muhammadrashid4587/nexus-terminal.git" --force
 fi
 
 echo -e "  ${G}✓${X} NEXUS installed"
+
+# ── Inject extra deps that pipx might miss ──
+pipx inject nexus-terminal pywebview psutil 2>/dev/null || true
 
 # Verify
 if command -v nexus &> /dev/null; then
     echo -e "  ${G}✓${X} 'nexus' command available"
 else
-    echo ""
-    echo -e "  ${R}NOTE:${X} Add pip scripts to your PATH if needed:"
-    echo -e "  ${D}  export PATH=\"\$(python3 -m site --user-base)/bin:\$PATH\"${X}"
+    export PATH="$HOME/.local/bin:$PATH"
+    if command -v nexus &> /dev/null; then
+        echo -e "  ${G}✓${X} 'nexus' command available"
+        echo -e "  ${R}NOTE:${X} Add this to your ~/.zshrc:"
+        echo -e "  ${D}  export PATH=\"\$HOME/.local/bin:\$PATH\"${X}"
+    else
+        echo -e "  ${R}!${X} Run: ${G}export PATH=\"\$HOME/.local/bin:\$PATH\"${X}"
+    fi
 fi
 
 # Check claude
@@ -86,9 +98,9 @@ echo ""
 echo -e "  ${G}━━━ Ready! ━━━${X}"
 echo ""
 echo -e "  Launch:"
-echo -e "    ${R}nexus${X}                     Open in current directory"
-echo -e "    ${R}nexus /path/to/project${X}    Open in specific directory"
-echo -e "    ${R}nexus --browser${X}           Open in browser"
+echo -e "    ${R}nexus${X}                     Native window"
+echo -e "    ${R}nexus -i${X}                  Inline (current terminal)"
+echo -e "    ${R}nexus --browser${X}           Browser"
 echo ""
-echo -e "  ${D}Config stored in ~/.nexus/${X}"
+echo -e "  ${D}Config: ~/.nexus/${X}"
 echo ""
