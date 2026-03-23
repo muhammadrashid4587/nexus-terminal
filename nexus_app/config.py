@@ -51,6 +51,7 @@ def get_api_key(provider: str) -> str | None:
     if key:
         return key
     env_map = {
+        "anthropic": "ANTHROPIC_API_KEY",
         "openai": "OPENAI_API_KEY",
         "google": "GOOGLE_API_KEY",
         "xai": "XAI_API_KEY",

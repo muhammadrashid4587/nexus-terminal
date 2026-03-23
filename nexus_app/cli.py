@@ -143,16 +143,13 @@ def start_server(app, host, port):
 
 
 def run_inline(cwd: str, config: dict):
-    """Run NEXUS in the current terminal."""
-    import shutil
+    """Run NEXUS in the current terminal — all models via API."""
     from nexus_app.config import load_config, save_config
-    from nexus_app.providers import get_model
+    from nexus_app.providers import get_model, stream_api_response
     from nexus_app.plugins.base import PluginManager
     from nexus_app.plugins.github import GitHubPlugin
     from nexus_app.plugins.system import SystemPlugin
     from nexus_app.plugins.git_local import GitLocalPlugin
-
-    CLAUDE_BIN = shutil.which("claude") or "claude"
 
     plugins = PluginManager()
     plugins.register(GitHubPlugin())
@@ -160,7 +157,7 @@ def run_inline(cwd: str, config: dict):
     plugins.register(GitLocalPlugin(cwd))
 
     selected_model = config.get("selected_model", "claude-opus")
-    conversation_id = None
+    chat_history = []
     greeting = config.get("owner", {}).get("greeting", "Operator")
 
     print()
@@ -183,70 +180,34 @@ def run_inline(cwd: str, config: dict):
             return True
         return False
 
-    async def run_claude_prompt(prompt):
-        nonlocal conversation_id
-        model = get_model(selected_model)
-        model_id = model.api_model if model else "claude-opus-4-6"
-        cmd = [CLAUDE_BIN, "--verbose", "--output-format", "stream-json",
-               "--model", model_id]
-        if conversation_id:
-            cmd.extend(["--resume", conversation_id])
-        cmd.extend(["-p", prompt])
+    async def run_prompt(prompt):
+        nonlocal chat_history
+        model = get_model(selected_model) or get_model("claude-opus")
+
+        chat_history.append({"role": "user", "content": prompt})
+        messages = [
+            {"role": "system", "content": f"You are NEXUS, an advanced AI coding assistant. Working dir: {cwd}"},
+            *chat_history,
+        ]
 
         try:
-            proc = await asyncio.create_subprocess_exec(
-                *cmd, stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE, cwd=cwd,
-            )
-        except FileNotFoundError:
-            print(f"  {R}✗{X} Claude CLI not found. Install from https://claude.ai/download")
-            return
+            full_response = ""
 
-        full_text = ""
-        async for line in proc.stdout:
-            decoded = line.decode("utf-8", errors="replace").strip()
-            if not decoded:
-                continue
-            try:
-                msg = json.loads(decoded)
-            except json.JSONDecodeError:
-                continue
+            async def on_chunk(text):
+                nonlocal full_response
+                full_response += text
+                print(text, end="", flush=True)
 
-            msg_type = msg.get("type", "")
-            if msg_type == "system" and msg.get("session_id"):
-                conversation_id = msg["session_id"]
-            elif msg_type == "assistant":
-                content = msg.get("message", {})
-                if isinstance(content, dict):
-                    for block in content.get("content", []):
-                        if block.get("type") == "text":
-                            text = block.get("text", "")
-                            delta = text[len(full_text):]
-                            if delta:
-                                full_text = text
-                                print(delta, end="", flush=True)
-                        elif block.get("type") == "tool_use":
-                            print(f"\n  {D}⚡ {block.get('name', '?')}{X}", flush=True)
-            elif msg_type == "content_block_delta":
-                delta = msg.get("delta", {})
-                if delta.get("type") == "text_delta":
-                    text = delta.get("text", "")
-                    if text:
-                        print(text, end="", flush=True)
-            elif msg_type == "result":
-                sid = msg.get("session_id")
-                if sid:
-                    conversation_id = sid
-                result_text = msg.get("result", "")
-                if result_text and not full_text:
-                    print(result_text, end="", flush=True)
+            await stream_api_response(model, messages, on_chunk)
 
-        await proc.wait()
-        if proc.returncode and proc.returncode != 0:
-            stderr = await proc.stderr.read()
-            err = stderr.decode().strip()
-            if err and not full_text:
-                print(f"\n  {R}✗ {err[:300]}{X}")
+            if full_response:
+                chat_history.append({"role": "assistant", "content": full_response})
+            if len(chat_history) > 40:
+                chat_history = chat_history[-30:]
+
+        except Exception as e:
+            print(f"\n  {R}✗ {e}{X}")
+
         print()
 
     def show_help():
@@ -310,7 +271,7 @@ def run_inline(cwd: str, config: dict):
             if handled:
                 continue
             print()
-            loop.run_until_complete(run_claude_prompt(text))
+            loop.run_until_complete(run_prompt(text))
             print()
     except Exception as e:
         print(f"\n  {R}Error: {e}{X}")

@@ -1,0 +1,2 @@
+aiohttp>=3.9.0
+pywebview>=5.0

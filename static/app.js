@@ -43,17 +43,9 @@ async function boot() {
   $('#boot').classList.add('hidden');
   setTimeout(() => $('#boot').remove(), 400);
 
-  // Fetch owner greeting then show banner
-  let greeting = 'OPERATOR';
-  try {
-    const info = await fetch('/api/info').then(r => r.json());
-    if (info.owner && info.owner.greeting) {
-      greeting = info.owner.greeting.toUpperCase();
-    }
-  } catch(e) {}
-
+  // Print welcome in terminal
   appendSystem('');
-  appendGreeting(greeting);
+  appendBanner();
   appendSystem('');
   appendSystem('Type a command. Ctrl+C to abort. "clear" to reset.\n');
   input().focus();
@@ -181,11 +173,33 @@ function appendBreak() {
   output().appendChild(el);
 }
 
-function appendGreeting(name) {
-  const el = document.createElement('div');
-  el.style.cssText = 'margin: 12px 0;';
-  el.innerHTML = `<span style="font-family: Orbitron, monospace; font-size: 28px; font-weight: 900; color: var(--cyan); text-shadow: 0 0 20px rgba(255,26,26,0.4); letter-spacing: 4px;">HELLO</span><br>`
-    + `<span style="font-family: Orbitron, monospace; font-size: 22px; font-weight: 700; color: var(--green); text-shadow: 0 0 15px rgba(255,215,0,0.3); letter-spacing: 3px;">${escHtml(name)}</span>`;
+function appendBanner() {
+  const banner = `
+  ██╗  ██╗███████╗██╗     ██╗      ██████╗
+  ██║  ██║██╔════╝██║     ██║     ██╔═══██╗
+  ███████║█████╗  ██║     ██║     ██║   ██║
+  ██╔══██║██╔══╝  ██║     ██║     ██║   ██║
+  ██║  ██║███████╗███████╗███████╗╚██████╔╝
+  ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝ ╚═════╝
+
+  ███╗   ███╗██████╗    ███╗   ███╗██╗   ██╗██╗  ██╗ █████╗ ███╗   ███╗███╗   ███╗ █████╗ ██████╗
+  ████╗ ████║██╔══██╗   ████╗ ████║██║   ██║██║  ██║██╔══██╗████╗ ████║████╗ ████║██╔══██╗██╔══██╗
+  ██╔████╔██║██████╔╝   ██╔████╔██║██║   ██║███████║███████║██╔████╔██║██╔████╔██║███████║██║  ██║
+  ██║╚██╔╝██║██╔══██╗   ██║╚██╔╝██║██║   ██║██╔══██║██╔══██║██║╚██╔╝██║██║╚██╔╝██║██╔══██║██║  ██║
+  ██║ ╚═╝ ██║██║  ██║██╗██║ ╚═╝ ██║╚██████╔╝██║  ██║██║  ██║██║ ╚═╝ ██║██║ ╚═╝ ██║██║  ██║██████╔╝
+  ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═════╝
+
+  ██████╗  █████╗ ███████╗██╗  ██╗██╗██████╗
+  ██╔══██╗██╔══██╗██╔════╝██║  ██║██║██╔══██╗
+  ██████╔╝███████║███████╗███████║██║██║  ██║
+  ██╔══██╗██╔══██║╚════██║██╔══██║██║██║  ██║
+  ██║  ██║██║  ██║███████║██║  ██║██║██████╔╝
+  ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝╚═════╝
+`.trimEnd();
+
+  const el = document.createElement('pre');
+  el.style.cssText = 'color: var(--cyan); font-size: 10px; line-height: 1.2; text-shadow: 0 0 12px rgba(255,26,26,0.5); margin: 8px 0;';
+  el.textContent = banner;
   output().appendChild(el);
   scroll();
 }
@@ -388,7 +402,6 @@ function updateModelDisplay(modelId) {
 // ── API Keys Modal ──
 function showKeysModal() {
   const providers = [
-    { id: 'anthropic', name: 'Anthropic (Claude)', placeholder: 'sk-ant-...' },
     { id: 'openai', name: 'OpenAI', placeholder: 'sk-...' },
     { id: 'google', name: 'Google (Gemini)', placeholder: 'AIza...' },
     { id: 'xai', name: 'xAI (Grok)', placeholder: 'xai-...' },
@@ -418,7 +431,7 @@ function showKeysModal() {
     <div class="modal">
       <h2>API KEYS</h2>
       <div style="font-size:10px; color:var(--muted); margin-bottom:14px;">
-        Enter your API keys. Each provider bills YOUR account directly.
+        Claude uses your existing CLI auth. Other providers need API keys.
       </div>
       ${rows}
       <div class="modal-actions">

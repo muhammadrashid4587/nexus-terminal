@@ -1,15 +1,16 @@
 """
 N E X U S  —  Multi-LLM Provider Engine
-All providers use API keys. No CLI dependencies. Every user pays their own bill.
+Supports Claude, OpenAI, Google, xAI, DeepSeek, Mistral, Meta
 """
 
 import json
 import os
+from pathlib import Path
 from dataclasses import dataclass
 
 import aiohttp
 
-from nexus_app.config import load_config, save_config, get_api_key
+CONFIG_PATH = Path(__file__).parent / "nexus_config.json"
 
 
 @dataclass
@@ -17,15 +18,15 @@ class Model:
     id: str
     name: str
     provider: str
-    api_model: str
+    api_model: str  # actual model ID sent to the API
 
 
 # ── All supported models ──
 MODELS = [
-    # Anthropic (direct API — no claude CLI needed)
-    Model("claude-opus", "Claude Opus 4.6", "anthropic", "claude-opus-4-6"),
-    Model("claude-sonnet", "Claude Sonnet 4.6", "anthropic", "claude-sonnet-4-6"),
-    Model("claude-haiku", "Claude Haiku 4.5", "anthropic", "claude-haiku-4-5"),
+    # Anthropic (via Claude CLI)
+    Model("claude-opus", "Claude Opus 4.6", "claude", "claude-opus-4-6"),
+    Model("claude-sonnet", "Claude Sonnet 4.6", "claude", "claude-sonnet-4-6"),
+    Model("claude-haiku", "Claude Haiku 4.5", "claude", "claude-haiku-4-5"),
 
     # OpenAI
     Model("gpt-4o", "GPT-4o", "openai", "gpt-4o"),
@@ -63,7 +64,6 @@ MODELS = [
 
 # Provider -> API base URL
 PROVIDER_URLS = {
-    "anthropic": "https://api.anthropic.com/v1/messages",
     "openai": "https://api.openai.com/v1/chat/completions",
     "google": "https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse",
     "xai": "https://api.x.ai/v1/chat/completions",
@@ -75,7 +75,6 @@ PROVIDER_URLS = {
 
 # Provider -> env var name for API key
 PROVIDER_KEY_ENV = {
-    "anthropic": "ANTHROPIC_API_KEY",
     "openai": "OPENAI_API_KEY",
     "google": "GOOGLE_API_KEY",
     "xai": "XAI_API_KEY",
@@ -86,6 +85,28 @@ PROVIDER_KEY_ENV = {
 }
 
 
+def load_config() -> dict:
+    if CONFIG_PATH.exists():
+        return json.loads(CONFIG_PATH.read_text())
+    return {"api_keys": {}, "selected_model": "claude-opus"}
+
+
+def save_config(config: dict):
+    CONFIG_PATH.write_text(json.dumps(config, indent=2))
+
+
+def get_api_key(provider: str) -> str | None:
+    """Get API key from config file or environment."""
+    config = load_config()
+    key = config.get("api_keys", {}).get(provider)
+    if key:
+        return key
+    env_var = PROVIDER_KEY_ENV.get(provider)
+    if env_var:
+        return os.environ.get(env_var)
+    return None
+
+
 def get_model(model_id: str) -> Model | None:
     for m in MODELS:
         if m.id == model_id:
@@ -94,80 +115,21 @@ def get_model(model_id: str) -> Model | None:
 
 
 def get_models_dict() -> list[dict]:
+    """Return models as JSON-serializable list."""
     return [
         {"id": m.id, "name": m.name, "provider": m.provider}
         for m in MODELS
     ]
 
 
-# ═══════════════════════════════════════════════
-#  Streaming handlers per provider
-# ═══════════════════════════════════════════════
-
-async def stream_anthropic(api_key: str, model: str, messages: list[dict], on_chunk):
-    """Stream from Anthropic Messages API directly. No claude CLI needed."""
-    headers = {
-        "x-api-key": api_key,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-    }
-
-    # Separate system message from conversation
-    system_text = ""
-    chat_messages = []
-    for msg in messages:
-        if msg["role"] == "system":
-            system_text += msg["content"] + "\n"
-        else:
-            chat_messages.append({"role": msg["role"], "content": msg["content"]})
-
-    payload = {
-        "model": model,
-        "max_tokens": 8192,
-        "stream": True,
-        "messages": chat_messages,
-    }
-    if system_text.strip():
-        payload["system"] = system_text.strip()
-
-    url = PROVIDER_URLS["anthropic"]
-
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            if resp.status != 200:
-                error_text = await resp.text()
-                raise Exception(f"Anthropic API error {resp.status}: {error_text[:300]}")
-
-            async for line in resp.content:
-                decoded = line.decode("utf-8", errors="replace").strip()
-                if not decoded or not decoded.startswith("data: "):
-                    continue
-
-                data_str = decoded[6:]
-                if data_str == "[DONE]":
-                    break
-
-                try:
-                    data = json.loads(data_str)
-                    event_type = data.get("type", "")
-
-                    if event_type == "content_block_delta":
-                        delta = data.get("delta", {})
-                        if delta.get("type") == "text_delta":
-                            text = delta.get("text", "")
-                            if text:
-                                await on_chunk(text)
-
-                    elif event_type == "message_delta":
-                        # End of message — usage info etc
-                        pass
-
-                except json.JSONDecodeError:
-                    continue
-
-
-async def stream_openai_compatible(url, api_key, model, messages, on_chunk):
-    """Stream from any OpenAI-compatible API."""
+async def stream_openai_compatible(
+    url: str,
+    api_key: str,
+    model: str,
+    messages: list[dict],
+    on_chunk,
+):
+    """Stream from any OpenAI-compatible API (OpenAI, xAI, DeepSeek, Mistral, Together, Groq)."""
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -204,28 +166,31 @@ async def stream_openai_compatible(url, api_key, model, messages, on_chunk):
                     continue
 
 
-async def stream_google(api_key, model, messages, on_chunk):
+async def stream_google(
+    api_key: str,
+    model: str,
+    messages: list[dict],
+    on_chunk,
+):
     """Stream from Google Gemini API."""
     url = PROVIDER_URLS["google"].format(model=model)
     url += f"&key={api_key}"
 
+    # Convert messages to Gemini format
     contents = []
     for msg in messages:
-        if msg["role"] == "system":
-            continue  # Gemini handles system differently
         role = "user" if msg["role"] == "user" else "model"
-        contents.append({"role": role, "parts": [{"text": msg["content"]}]})
+        contents.append({
+            "role": role,
+            "parts": [{"text": msg["content"]}],
+        })
 
     payload = {"contents": contents}
 
-    # Add system instruction if present
-    system_parts = [msg["content"] for msg in messages if msg["role"] == "system"]
-    if system_parts:
-        payload["systemInstruction"] = {"parts": [{"text": " ".join(system_parts)}]}
-
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            url, json=payload,
+            url,
+            json=payload,
             headers={"Content-Type": "application/json"},
         ) as resp:
             if resp.status != 200:
@@ -236,6 +201,7 @@ async def stream_google(api_key, model, messages, on_chunk):
                 decoded = line.decode("utf-8", errors="replace").strip()
                 if not decoded or not decoded.startswith("data: "):
                     continue
+
                 try:
                     data = json.loads(decoded[6:])
                     candidates = data.get("candidates", [])
@@ -249,25 +215,22 @@ async def stream_google(api_key, model, messages, on_chunk):
                     continue
 
 
-# ═══════════════════════════════════════════════
-#  Router
-# ═══════════════════════════════════════════════
-
-async def stream_api_response(model: Model, messages: list[dict], on_chunk):
+async def stream_api_response(
+    model: Model,
+    messages: list[dict],
+    on_chunk,
+):
     """Route to the correct provider and stream response."""
     provider = model.provider
     api_key = get_api_key(provider)
 
     if not api_key:
-        env_var = PROVIDER_KEY_ENV.get(provider, "")
         raise Exception(
-            f"No API key for {provider.upper()}. "
-            f"Set it in NEXUS settings (gear icon) or export {env_var}."
+            f"No API key for {provider}. Set it in NEXUS settings or "
+            f"export {PROVIDER_KEY_ENV.get(provider, 'KEY')} env var."
         )
 
-    if provider == "anthropic":
-        await stream_anthropic(api_key, model.api_model, messages, on_chunk)
-    elif provider == "google":
+    if provider == "google":
         await stream_google(api_key, model.api_model, messages, on_chunk)
     else:
         url = PROVIDER_URLS[provider]

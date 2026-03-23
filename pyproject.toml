@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nexus-terminal"
-version = "2.0.0"
+version = "2.1.0"
 description = "NEXUS — Personal AI command center. Multi-LLM terminal with integrations."
 readme = "README.md"
 license = "MIT"
