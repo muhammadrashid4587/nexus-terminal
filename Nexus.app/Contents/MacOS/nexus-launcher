@@ -1,0 +1,23 @@
+#!/bin/bash
+# NEXUS App Launcher
+# Resolves the actual nexus project and launches in native window mode
+
+NEXUS_DIR="$(dirname "$(dirname "$(dirname "$(dirname "$0")")")")"
+export NEXUS_CWD="${HOME}"
+export NEXUS_PORT="${NEXUS_PORT:-7777}"
+export PATH="/usr/local/bin:/opt/homebrew/bin:$HOME/.local/bin:$PATH"
+
+cd "$NEXUS_DIR"
+
+# Bootstrap venv if needed
+if [ ! -d ".venv" ]; then
+    python3 -m venv .venv
+fi
+
+source .venv/bin/activate
+
+if ! python3 -c "import aiohttp" 2>/dev/null || ! python3 -c "import webview" 2>/dev/null; then
+    pip install -q -r requirements.txt
+fi
+
+exec python3 nexus.py

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>N E X U S</title>
+  <link rel="icon" type="image/png" href="/static/icon.png">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="scanlines"></div>
+
+  <div id="app">
+    <!-- Title Bar -->
+    <div id="titlebar">
+      <div class="tb-left">
+        <span class="tb-logo">NEXUS</span>
+        <span class="tb-sep">|</span>
+        <span class="tb-info" id="cwd-label">~</span>
+      </div>
+      <div class="tb-right">
+        <span class="tb-dot" id="status-dot"></span>
+        <span class="tb-status" id="status-text">READY</span>
+        <span class="tb-sep">|</span>
+        <span class="tb-info" id="clock"></span>
+      </div>
+    </div>
+
+    <!-- Main Area -->
+    <div id="main-area">
+      <!-- Terminal -->
+      <div id="terminal" tabindex="0">
+        <div id="output"></div>
+        <div id="input-line">
+          <span class="prompt" id="prompt">nexus <span class="prompt-arrow">❯</span> </span>
+          <div id="input-wrap">
+            <textarea id="input" rows="1" autofocus spellcheck="false"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel -->
+      <div id="right-panel">
+        <!-- Globe -->
+        <div class="panel-section" id="globe-section">
+          <div class="panel-header">
+            <span class="panel-label">GLOBAL NETWORK</span>
+            <span class="panel-dot"></span>
+          </div>
+          <canvas id="globe-canvas"></canvas>
+        </div>
+
+        <!-- Commands -->
+        <div class="panel-section" id="commands-section">
+          <div class="panel-header">
+            <span class="panel-label">COMMANDS</span>
+          </div>
+          <div id="commands-list">
+            <div class="cmd-group">GITHUB</div>
+            <div class="cmd-item" data-cmd="/gh"><span class="cmd-slash">/</span>gh<span class="cmd-desc">Overview</span></div>
+            <div class="cmd-item" data-cmd="/gh repos"><span class="cmd-slash">/</span>gh repos<span class="cmd-desc">Repositories</span></div>
+            <div class="cmd-item" data-cmd="/gh prs"><span class="cmd-slash">/</span>gh prs<span class="cmd-desc">Pull requests</span></div>
+            <div class="cmd-item" data-cmd="/gh notifications"><span class="cmd-slash">/</span>gh notifs<span class="cmd-desc">Notifications</span></div>
+            <div class="cmd-group">SYSTEM</div>
+            <div class="cmd-item" data-cmd="/sys"><span class="cmd-slash">/</span>sys<span class="cmd-desc">Overview</span></div>
+            <div class="cmd-item" data-cmd="/sys cpu"><span class="cmd-slash">/</span>sys cpu<span class="cmd-desc">CPU bars</span></div>
+            <div class="cmd-item" data-cmd="/sys mem"><span class="cmd-slash">/</span>sys mem<span class="cmd-desc">Memory</span></div>
+            <div class="cmd-item" data-cmd="/sys procs"><span class="cmd-slash">/</span>sys procs<span class="cmd-desc">Processes</span></div>
+            <div class="cmd-item" data-cmd="/sys net"><span class="cmd-slash">/</span>sys net<span class="cmd-desc">Network</span></div>
+            <div class="cmd-group">GIT</div>
+            <div class="cmd-item" data-cmd="/git"><span class="cmd-slash">/</span>git<span class="cmd-desc">Repo status</span></div>
+            <div class="cmd-item" data-cmd="/git log"><span class="cmd-slash">/</span>git log<span class="cmd-desc">Commits</span></div>
+            <div class="cmd-item" data-cmd="/git branches"><span class="cmd-slash">/</span>git branches<span class="cmd-desc">Branches</span></div>
+            <div class="cmd-group">TERMINAL</div>
+            <div class="cmd-item" data-cmd="clear"><span class="cmd-slash"></span>clear<span class="cmd-desc">Clear screen</span></div>
+          </div>
+        </div>
+
+        <!-- Model Selector -->
+        <div class="panel-section" id="model-section">
+          <div class="panel-header">
+            <span class="panel-label">MODEL</span>
+            <button class="key-btn" id="btn-keys" title="API Keys">⚙</button>
+          </div>
+          <div id="model-select">
+            <select id="model-dropdown"></select>
+          </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="panel-section" id="sys-section">
+          <div class="panel-header">
+            <span class="panel-label">SYSTEM</span>
+          </div>
+          <div class="sys-grid">
+            <div class="sys-item">
+              <span class="sys-key">MODEL</span>
+              <span class="sys-val" id="current-model">OPUS 4.6</span>
+            </div>
+            <div class="sys-item">
+              <span class="sys-key">UPTIME</span>
+              <span class="sys-val" id="uptime">00:00:00</span>
+            </div>
+            <div class="sys-item">
+              <span class="sys-key">MSGS</span>
+              <span class="sys-val" id="msg-count">0</span>
+            </div>
+            <div class="sys-item">
+              <span class="sys-key">STATUS</span>
+              <span class="sys-val" id="sys-status">ONLINE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Boot Overlay -->
+  <div id="boot">
+    <pre id="boot-text"></pre>
+  </div>
+
+  <script src="/static/holo.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
