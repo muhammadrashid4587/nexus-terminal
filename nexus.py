@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 N E X U S  —  Neural Execution & Unified System
-Multi-LLM Tony Stark terminal. Supports Claude, OpenAI, Gemini, Grok, DeepSeek, Mistral, Llama.
+Multi-LLM terminal. Supports Claude, OpenAI, Gemini, Grok, DeepSeek, Mistral, Llama.
 """
 
 import asyncio

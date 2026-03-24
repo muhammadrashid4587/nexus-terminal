@@ -2,7 +2,7 @@
 
 **Personal AI Command Center** — by Muhammad Rashid
 
-A Tony Stark-inspired terminal that connects to every major LLM and all your dev tools in one native interface.
+A multi-LLM terminal that connects every major AI model and all your dev tools in one native interface.
 
 ## Install
 
@@ -57,7 +57,7 @@ Switch between any LLM on the fly from the dropdown or with `/model <id>`:
 | **Meta** | Llama 4 Maverick, Llama 3.3 70B |
 | **Groq** | Llama 3.3 70B, Mixtral 8x7B |
 
-Claude models use your existing `claude` CLI auth. Other providers need an API key.
+All models use API keys — each user provides their own. Your key, your bill.
 
 ### Built-in Integrations
 
@@ -100,22 +100,20 @@ Slash commands that connect to your real data:
 | **Inline** | `nexus -i` | Runs in your current terminal, no window needed |
 | **Browser** | `nexus --browser` | Opens in your default browser |
 
-### Tony Stark UI
+### Interface
 
-- 3D rotating wireframe globe with arc reactor rings
-- Red & gold holographic theme
-- HUD-style panels with live system stats
+- 3D rotating wireframe globe with orbital rings
+- Holographic HUD-style panels with live system stats
 - Animated boot sequence
-- Scanline overlay
+- Model selector with grouped providers
+- Clickable slash commands panel
 
 ## API Keys
 
-Claude works out of the box via `claude` CLI. For other providers:
+All models require your own API key. Set them via the gear icon in the UI or environment variables:
 
-**Option 1: UI** — Click the gear icon next to MODEL in the right panel
-
-**Option 2: Environment variables**
 ```bash
+export ANTHROPIC_API_KEY="sk-ant-..."
 export OPENAI_API_KEY="sk-..."
 export GOOGLE_API_KEY="AIza..."
 export XAI_API_KEY="xai-..."
@@ -127,12 +125,11 @@ export GROQ_API_KEY="gsk_..."
 
 ## Config
 
-All configuration stored in `~/.nexus/config.json`. Persists across sessions and machines.
+All configuration stored in `~/.nexus/config.json`. Persists across sessions.
 
 ## Requirements
 
 - Python 3.10+
-- `claude` CLI (for Anthropic models)
 - `gh` CLI (for GitHub integration, optional)
 
 ## Development
@@ -141,17 +138,7 @@ All configuration stored in `~/.nexus/config.json`. Persists across sessions and
 git clone https://github.com/muhammadrashid4587/nexus-terminal.git
 cd nexus-terminal
 pip install -e .
-nexus --browser    # develop with hot reload in browser
-```
-
-## Publishing to PyPI
-
-```bash
-pip install build twine
-python -m build
-twine upload dist/*
-# Username: __token__
-# Password: your PyPI API token (pypi-...)
+nexus --browser
 ```
 
 ## License
